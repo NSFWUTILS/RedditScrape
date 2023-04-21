@@ -38,6 +38,32 @@ I've got this setup to run on a fairly beefy VM (24 cores and 20 gigs of ram). C
 
 These values should be more in line with how many CPU cores you have (as a very rough estimate). You can try tweaking these, but putting them too high can kill your system or introduce lots of errors. There is a trade off here, so higher numbers isn't always better. 
 
+### Sorting Posts
+I am using the praw module to generate the list of files to download. There are 3 settings in your `config` file that matter here:
+- `REDDIT_SORT_METHOD`
+- `REDDIT_TIME_PERIOD`
+- `REDDIT_POST_LIMIT`
+
+The default settings give you the first `100` `top` posts from `all` time 
+
+Here is a list of possible sorting options for subreddit posts in PRAW:
+
+- hot: The most popular posts, taking both upvotes and downvotes into account.
+- new:The most recently submitted posts.
+- rising: Posts that are quickly gaining upvotes and comments.
+- controversial: Posts with a high number of both upvotes and downvotes.
+- top: The highest-scoring (upvotes minus downvotes) posts of all time, or within a specified time range.
+
+For top and controversial, you can also specify a time filter with the following options:
+
+all - All time.
+year - Within the past year.
+month - Within the past month.
+week - Within the past week.
+day - Within the past day.
+hour - Within the past hour.
+
+
 That should do it. Make sure you are in the same folder as the script and try running `python crawler.py`
 
 If things work, the script will create a sub-folder for each sub-reddit inside of whatever folder you specified as `MEDIA_FOLDER` in your `config` file. 
