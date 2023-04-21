@@ -4,7 +4,7 @@ import re
 import urllib.request
 #from RedDownloader import RedDownloader
 from redgifdl import download
-import youtube_dl
+#import youtube_dl
 from gallery_dl import job, config
 
 
