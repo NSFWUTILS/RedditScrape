@@ -147,7 +147,7 @@ def main():
         session = create_custom_session(int(poolSize))
         futures = []
         print("done", flush=True)
-        print(f"Gathering list of topics and files to download (the real work begins)...",end="", flush=True)
+        print(f"Gathering list of topics and files to download (the real work begins)...", flush=True)
         for subreddit_name in subreddit_names:
             futures.append(executor.submit(process_subreddit, subreddit_name, downloaded_urls, session))
 
@@ -175,6 +175,16 @@ def main():
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    print("")
+    print("* IMPORTANT:")
+    print("************")
+    print("* If you want to cancel this you can't use 'ctrl+c'. ")
+    print("* You will need to use 'ctrl+z' and once it has stopped run 'kill %1'.")
+    print("")
+    print("Starting Process", flush=True)
+    print("")
+    print("Loading list of subreddits to scrape...", end='', flush=True)
     main()
     print(f"List of bad subs:" )
     while not bad_subs.empty():
@@ -207,5 +217,15 @@ if __name__ == "__main__":
     print(f"All done. Logs can be found in {log_file}")
     print(f"Media is in {root_folder}")
     print(f"")
+
+    end_time = time.time()
+    total_time = end_time - start_time
+    total_minutes = round(total_time / 60)
+
+    if total_minutes < 120:
+        print(f"Total time taken: {total_minutes} minutes")
+    else:
+        total_hours = round(total_time / 3600, 1)
+        print(f"Total time taken: {total_hours} hours")
 
 
