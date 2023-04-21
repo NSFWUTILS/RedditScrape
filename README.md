@@ -81,6 +81,9 @@ If any of the entries in your list of subs don't exist (You spelled them wrong e
 
 Results can be seen in `output_log.txt` once it finishes. 
 
+## Stopping the script
+**IMPORTANT:** This script runs in a threaded manner so you can't just `ctrl+c` your way out. If you want to cancel this you'll have to use `ctrl+z` first, then once it has stopped you can run `kill %1`. 
+
 # To Do
 A few things I'd like to do if time permits....
 - Use something like sqllite to store all of this, that opens up some possibilities down the road for easier storing/tagging/classification. 
