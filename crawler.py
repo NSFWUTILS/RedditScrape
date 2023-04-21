@@ -77,6 +77,7 @@ def process_post(post, subreddit_folder, session):
     file_name = os.path.basename(post.url)
     file_path = os.path.join(subreddit_folder, file_name)
     # if os.path.exists(file_path):
+    #     print(f"Skipping {file_path}")
     #     return
     gallery_command = f'python -m gallery_dl -D {subreddit_folder} "{post.url}" '
     try:
@@ -92,7 +93,9 @@ def process_post(post, subreddit_folder, session):
             download_file(post.url, file_path, session)
 
     except Exception as e:
-        print(f"Error processing url: {post.url} - {e}")
+        error_message = "Error processing URL: " + post.url + " - " + e
+        download_errors.put(error_message)
+
 
 def process_subreddit(subreddit_name, downloaded_urls, session):
     subreddit_folder = os.path.join(root_folder, subreddit_name)
