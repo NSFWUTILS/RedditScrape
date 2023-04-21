@@ -64,7 +64,7 @@ def download_file(url, file_path, session):
             download_success.put(file_path)
             #print(f"File downloaded: {file_path}")
     else:
-        print(f"Error downloading {url} - status code {response.status_code}")
+        #print(f"Error downloading {url} - status code {response.status_code}")
         download_errors.put(url)
 
 
