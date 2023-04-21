@@ -73,7 +73,9 @@ day - Within the past day.
 hour - Within the past hour.
 
 ## Running the script
-Make sure you are in the same folder as the script and try running `python crawler.py`
+Make sure you are in the same folder as the script and try running `python crawler.py`. 
+
+Eventually a progress indicator will show up and you'll notice it's not very accurate. Due to the multi-threaded nature of this I couldn't figure out a way to get a reliable count. Basically it starts downloading files while it's still discovering just how many files it has to download. Eventually it should settle down some and give a more accurate reading. 
 
 If things work, the script will create a sub-folder for each sub-reddit inside of whatever folder you specified as `MEDIA_FOLDER` in your `config` file. 
 
