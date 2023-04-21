@@ -31,6 +31,9 @@ On a mac, you just need to do `brew install libmagic` (assuming you already have
 - Edit the file `config` with your values
 - Install the required python modules: `python -m pip install -r requirements.txt`
 
+## Configure the Script
+I use the file `config` to control all of the important variables. Below are some of the things you need to understand and adjust to your own liking. 
+
 ### Performance Considerations
 I've got this setup to run on a fairly beefy VM (24 cores and 20 gigs of ram). Consider modifying the two values in `config`:
 - `MAX_WORKERS`
@@ -63,8 +66,8 @@ week - Within the past week.
 day - Within the past day.
 hour - Within the past hour.
 
-
-That should do it. Make sure you are in the same folder as the script and try running `python crawler.py`
+## Running the script
+Make sure you are in the same folder as the script and try running `python crawler.py`
 
 If things work, the script will create a sub-folder for each sub-reddit inside of whatever folder you specified as `MEDIA_FOLDER` in your `config` file. 
 
