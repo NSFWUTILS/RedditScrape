@@ -23,6 +23,8 @@ client_user_agent = config["CONFIG"]["REDDIT_USER_AGENT"]
 post_limit = config["CONFIG"]["REDDIT_POST_LIMIT"]
 sort_type = config["CONFIG"]["REDDIT_SORT_METHOD"]
 time_period = config["CONFIG"]["REDDIT_TIME_PERIOD"]
+maxWorkers = config["CONFIG"]["MAX_WORKERS"]
+poolSize = config["CONFIG"]["POOL_SIZE"]
 
 
 
@@ -133,7 +135,7 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
     posts = list(post_method(time_filter=time_period, limit=int(post_limit)))
 
     #with concurrent.futures.ThreadPoolExecutor() as executor:
-    with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=int(maxWorkers)) as executor:
         #session = create_custom_session(40)
         for post in posts:
             if post.url not in downloaded_urls:
@@ -180,7 +182,7 @@ def main():
         subreddit_names = f.read().splitlines()
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        session = create_custom_session(24)
+        session = create_custom_session(int(poolSize))
         futures = []
         for subreddit_name in subreddit_names:
             futures.append(executor.submit(process_subreddit, subreddit_name, downloaded_urls, session))
