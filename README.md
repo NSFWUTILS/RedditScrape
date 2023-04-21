@@ -81,6 +81,9 @@ If any of the entries in your list of subs don't exist (You spelled them wrong e
 
 Results can be seen in `output_log.txt` once it finishes. 
 
+## Running in the background
+If you want to make sure this keeps running in case you get disconnected or something, you can run it in the background with something like `nohup python crawler.py > nohup.log &`. You can monitor the status of this using `jobs` and use `kill %1` if you need to cancel it. 
+
 ## Stopping the script
 **IMPORTANT:** This script runs in a threaded manner so you can't just `ctrl+c` your way out. If you want to cancel this you'll have to use `ctrl+z` first, then once it has stopped you can run `kill %1`. 
 
