@@ -5,7 +5,6 @@ REDDIT_USER_AGENT = SomeNameThatDoesNotMatter
 REDDIT_POST_LIMIT = 100 # How many posts you want
 REDDIT_SORT_METHOD = top # top, new, hot etc
 REDDIT_TIME_PERIOD = all 
-LOG_FILE = results.csv
 MEDIA_FOLDER = /where/to/store/the/pr0n
 MAX_WORKERS = 24
 POOL_SIZE = 24
