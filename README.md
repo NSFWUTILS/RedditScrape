@@ -1,11 +1,11 @@
 # RedditScrapeNSFW
-With the news that reddit will soon be charging for API access, and that imgur is no longer hosting NSFW media, I wanted to create something to help download things while the getting is good. 
-
-I've tested this on Mac and Ubuntu with python 3.9.7
+With the news that reddit will soon be charging for API access, and that imgur is no longer hosting NSFW media, I wanted to create something to help download things while the getting is good.  I've tested this on Mac and Ubuntu with python 3.9.7
 
 The code is designed to run in a concurrent fashion (sort of like multi-threading) to help with performance. 
 
 It will also look to see if the file already exists before downloading it, so you can run this multiple times. 
+
+Lastly, it seems to be working with imgur, redgif, and gfycat. 
 
 # Getting Started
 The following sections should help get you started. 
