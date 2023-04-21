@@ -125,6 +125,7 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
 
 
 def main():
+    start_time = time.time()
     print("")
     print("***********")
     print("IMPORTANT: If you want to cancel this you can't use 'ctrl+c'. You will need to use 'ctrl+z' and once it has stopped run 'kill %1'.")
@@ -156,7 +157,19 @@ def main():
                 time.sleep(1)
             except Exception as e:
                 print(f"Error in process_subreddit: {e}")
+    end_time = time.time()
+    total_time = end_time - start_time
     print("done", flush=True)
+
+    total_minutes = round(total_time / 60)
+
+    if total_minutes < 120:
+        print(f"Total time taken: {total_minutes} minutes")
+    else:
+        total_hours = round(total_time / 3600, 1)
+        print(f"Total time taken: {total_hours} hours")
+
+
 
 
 
