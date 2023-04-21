@@ -39,6 +39,6 @@ If any of the entries in your list of subs don't exist (You spelled them wrong e
 
 # To Do
 A few things I'd like to do if time permits....
-- Use something like sqllite to store all of this instead of CSV, that opens up some possibilities down the road for easier storing/tagging/classification. 
+- Use something like sqllite to store all of this, that opens up some possibilities down the road for easier storing/tagging/classification. 
 - Implement proper logging
-- Look into making this asynchronous to increase performance
+- Look into making this asynchronous to increase performance: (This is done) 
