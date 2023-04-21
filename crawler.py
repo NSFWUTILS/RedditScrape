@@ -1,9 +1,7 @@
 import os
-import csv
 import configparser
 import praw
 from utils import checkMime, download_video_from_text_file
-from redgifdl import download
 import concurrent.futures
 import requests
 import time
