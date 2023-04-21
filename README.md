@@ -35,6 +35,7 @@ On a mac, you just need to do `brew install libmagic` (assuming you already have
 I've got this setup to run on a fairly beefy VM (24 cores and 20 gigs of ram). Consider modifying the two values in `config`:
 - `MAX_WORKERS`
 - `POOL_SIZE`
+
 These values should be more in line with how many CPU cores you have (as a very rough estimate). You can try tweaking these, but putting them too high can kill your system or introduce lots of errors. There is a trade off here, so higher numbers isn't always better. 
 
 That should do it. Make sure you are in the same folder as the script and try running `python crawler.py`
