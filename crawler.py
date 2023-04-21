@@ -125,7 +125,13 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
 
 
 def main():
+    print("")
+    print("***********")
+    print("IMPORTANT: If you want to cancel this you can't use 'ctrl+c'. You will need to use 'ctrl+z' and once it has stopped run 'kill %1'.")
+    print("***********")
+    print("")
     print("Starting Process", flush=True)
+    print("")
     print("Loading list of subreddits to scrape...", end='', flush=True)
     downloaded_urls = set()
 
