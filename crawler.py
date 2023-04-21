@@ -30,10 +30,18 @@ global bad_subs
 global download_errors
 global download_success
 global skipped_files
+global processed_urls
+global total_urls
+global download_queue
+global download_counter
+download_counter = 0
+processed_urls = 0
+total_urls = 1
 download_success = Queue()
 download_errors = Queue()
 bad_subs = Queue()
 skipped_files = Queue()
+download_queue = Queue()
 # Set up the root filesystem folder
 root_folder = config["CONFIG"]["MEDIA_FOLDER"]
 
@@ -49,6 +57,15 @@ def create_custom_session(pool_size, pool_block=True):
 praw_session = create_custom_session(36, pool_block=False)
 reddit = praw.Reddit(client_id=client_id, client_secret=client_secret, user_agent=client_user_agent, requestor_kwargs={'session': praw_session})
 
+def update_progress():
+    #print(f"Total URL Count: {total_urls}",flush=True)
+    # while not download_queue.empty():
+    #     download_counter += 1
+        #progress = (processed_urls / total_urls) * 100
+    download_counter = download_queue.qsize()
+    progress = (download_counter / total_urls ) * 100
+    print(f"\rProgress: {progress:.2f}%",end="", flush=True)
+
 
 def download_file(url, file_path, session):
     #print(f"Attempting to download {url} to {file_path}", flush=True)
@@ -62,6 +79,8 @@ def download_file(url, file_path, session):
         with open(file_path, 'wb') as f:
             f.write(response.content)
             download_success.put(file_path)
+            processed_urls += 1
+            update_progress()
             #print(f"File downloaded: {file_path}")
     else:
         #print(f"Error downloading {url} - status code {response.status_code}")
@@ -69,7 +88,6 @@ def download_file(url, file_path, session):
 
 
 
-#def process_post(post, subreddit_folder):
 def process_post(post, subreddit_folder, session):
     #print(f"Processing post: {post.url}")
     file_name = os.path.basename(post.url)
@@ -87,8 +105,12 @@ def process_post(post, subreddit_folder, session):
             if result:
                 if result.stdout != "" and "#" not in result.stdout:
                     download_success.put(result.stdout)
+                    download_queue.put(file_path)
+                    update_progress()
         else:
             download_file(post.url, file_path, session)
+            download_queue.put(file_path)
+            update_progress()
 
     except Exception as e:
         error_message = "Error processing URL: " + post.url + " - " + e
@@ -96,6 +118,7 @@ def process_post(post, subreddit_folder, session):
 
 
 def process_subreddit(subreddit_name, downloaded_urls, session):
+    global total_urls
     subreddit_folder = os.path.join(root_folder, subreddit_name)
     os.makedirs(subreddit_folder, exist_ok=True)
 
@@ -116,6 +139,7 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
         for post in posts:
             if post.url not in downloaded_urls:
                 try:
+                    total_urls += 1
                     executor.submit(process_post, post, subreddit_folder, session)
                     downloaded_urls.add(post.url)
                     #print(f"Adding {post.url} to task list")
@@ -125,19 +149,7 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
 
 
 def main():
-    start_time = time.time()
-    print("")
-    print("***********")
-    print("IMPORTANT: If you want to cancel this you can't use 'ctrl+c'. You will need to use 'ctrl+z' and once it has stopped run 'kill %1'.")
-    print("***********")
-    print("")
-    print("Starting Process", flush=True)
-    print("")
-    print("Loading list of subreddits to scrape...", end='', flush=True)
     downloaded_urls = set()
-
-
-
     # Read in the list of subreddit names from the text file
     subreddit_file = 'subs'
     with open(subreddit_file) as f:
@@ -157,22 +169,6 @@ def main():
                 time.sleep(1)
             except Exception as e:
                 print(f"Error in process_subreddit: {e}")
-    end_time = time.time()
-    total_time = end_time - start_time
-    print("done", flush=True)
-
-    total_minutes = round(total_time / 60)
-
-    if total_minutes < 120:
-        print(f"Total time taken: {total_minutes} minutes")
-    else:
-        total_hours = round(total_time / 3600, 1)
-        print(f"Total time taken: {total_hours} hours")
-
-
-
-
-
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -186,6 +182,8 @@ if __name__ == "__main__":
     print("")
     print("Loading list of subreddits to scrape...", end='', flush=True)
     main()
+    print("")
+    print("Downloading Complete")
     print(f"List of bad subs:" )
     while not bad_subs.empty():
         item = bad_subs.get()
@@ -198,21 +196,28 @@ if __name__ == "__main__":
     if os.path.exists(log_file):
         os.remove(log_file)
 
+    skipCount = 0
+    downloadCount = 0
+    errorCount = 0
+
     with open(log_file, "w") as log:
         log.write("List of files we skipped (Already existed):\n")
         while not skipped_files.empty():
             item = skipped_files.get()
             log.write(f" - {item}\n")
+            skipCount += 1
 
         log.write("\nList of files downloaded:\n")
         while not download_success.empty():
             item = download_success.get().strip()
             log.write(f" - {item}\n")
+            downloadCount += 1
 
         log.write("\nList of URLs we failed to retrieve:\n")
         while not download_errors.empty():
             item = download_errors.get()
             log.write(f" - Unable to download: {item}\n")
+            errorCount += 1
 
     print(f"All done. Logs can be found in {log_file}")
     print(f"Media is in {root_folder}")
@@ -223,9 +228,14 @@ if __name__ == "__main__":
     total_minutes = round(total_time / 60)
 
     if total_minutes < 120:
-        print(f"Total time taken: {total_minutes} minutes")
+        print(f"Overall, I processed {total_urls} files in {total_minutes} minutes")
     else:
         total_hours = round(total_time / 3600, 1)
-        print(f"Total time taken: {total_hours} hours")
+        print(f"Overall, I processed {total_urls} files in {total_hours} hours")
+
+    print(f" - {skipCount} files were skipped")
+    print(f" - {downloadCount} files were downloaded")
+    print(f" - {errorCount} files had errors")
+    print(f"I have no idea what happened to the other {total_urls - skipCount - downloadCount - errorCount} files...")
 
 
