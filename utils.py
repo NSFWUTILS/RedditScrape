@@ -6,6 +6,7 @@ import urllib.request
 from redgifdl import download
 #import youtube_dl
 from gallery_dl import job, config
+import subprocess
 
 
 def checkMime(fileName):
@@ -35,6 +36,20 @@ def gallery(URL):
     config.load()
     config.set(("extractor",), "base-directory", f"./tmp")
     job.DownloadJob(URL).run()
+
+def gallery_download(subreddit_folder, post):
+    reddit_url = "https://www.reddit.com" + post.permalink
+    post_title = clean_title(post.title)
+    #print(f"Reddit URL: {reddit_url}",flush=True)
+    #print(f"Post Permalink: {post.permalink}",flush=True)
+    #gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{extension} "{post.url}" '
+    gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{{extension}}" {reddit_url} '
+    #print(f"Running gallery: {gallery_command}",flush=True)
+    result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
+    #print(f"Result STDOUT: {result.stdout}",flush=True)
+    #print(f"Result STDERR: {result.STDERR}",flush=True)
+    return result
+
 
 def download_video_from_text_file(file_path):
     # Read the file contents

@@ -1,7 +1,7 @@
 import os
 import configparser
 import praw
-from utils import checkMime, download_video_from_text_file, clean_title
+from utils import checkMime, download_video_from_text_file, gallery_download
 import concurrent.futures
 import requests
 import time
@@ -99,23 +99,34 @@ def process_post(post, subreddit_folder, session):
     #     return
     gallery_command = f'python -m gallery_dl -D {subreddit_folder} "{post.url}" '
     try:
-        if "redgifs.com" in post.url or "gfycat.com" in post.url:
-            if os.path.exists(file_path):
-                skipped_files.put(file_path)
-                return
-            result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
-            if result:
-                if result.stdout != "" and "#" not in result.stdout:
-                    download_success.put(result.stdout)
-                    download_queue.put(file_path)
-                    update_progress()
-        else:
-            result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
-            #download_file(post.url, file_path, session)
+        result = gallery_download(subreddit_folder,post)
+        if result:
             if result.stdout != "" and "#" not in result.stdout:
                 download_success.put(result.stdout)
-            download_queue.put(file_path)
-            update_progress()
+                #download_success.put(file_path)
+                update_progress()
+            elif "#" in result.stdout:
+                skipped_files.put(file_path)
+
+        # if "redgifs.com" in post.url or "gfycat.com" in post.url:
+        #     if os.path.exists(file_path):
+        #         skipped_files.put(file_path)
+        #         return
+        #     #result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
+        #     result = gallery_download(subreddit_folder,post)
+        #     if result:
+        #         if result.stdout != "" and "#" not in result.stdout:
+        #             download_success.put(result.stdout)
+        #             download_queue.put(file_path)
+        #             update_progress()
+        # else:
+        #     #result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
+        #     result = gallery_download(subreddit_folder,post)
+        #     #download_file(post.url, file_path, session)
+        #     if result.stdout != "" and "#" not in result.stdout:
+        #         download_success.put(result.stdout)
+        #     download_queue.put(file_path)
+        #     update_progress()
 
     except Exception as e:
         error_message = "Error processing URL: " + post.url + " - " + e
