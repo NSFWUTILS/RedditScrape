@@ -25,11 +25,6 @@ The box in red represents your "Client Secret"
 
 **DO NOT SHARE THESE WITH ANYONE ELSE**
 
-## Install libmagic
-This is used by the code to analyze if files are text or not (some sites return text files). If they are text, it grabs the proper URL from within the text and downloads that instead. 
-
-On a mac, you just need to do `brew install libmagic` (assuming you already have homebrew installed). 
-
 ## Setup the Script
 - Clone the repo
 - cd into the repo folder
