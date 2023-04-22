@@ -64,14 +64,14 @@ Here is a list of possible sorting options for subreddit posts in PRAW:
 - controversial: Posts with a high number of both upvotes and downvotes.
 - top: The highest-scoring (upvotes minus downvotes) posts of all time, or within a specified time range.
 
-For top and controversial, you can also specify a time filter with the following options:
+**For top and controversial**, you can also specify a time filter with the following options:
 
-all - All time.
-year - Within the past year.
-month - Within the past month.
-week - Within the past week.
-day - Within the past day.
-hour - Within the past hour.
+- all - All time.
+- year - Within the past year.
+- month - Within the past month.
+- week - Within the past week.
+- day - Within the past day.
+- hour - Within the past hour.
 
 ## Running the script
 Make sure you are in the same folder as the script and try running `python crawler.py`. 
