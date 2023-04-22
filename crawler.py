@@ -133,7 +133,10 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
 
     # Create a regular list of posts
     post_method = getattr(subreddit, sort_type)
-    posts = list(post_method(time_filter=time_period, limit=int(post_limit)))
+    if sort_type == "top" or sort_type == "controversial":
+        posts = list(post_method(time_filter=time_period, limit=int(post_limit)))
+    else:
+        posts = list(post_method(limit=int(post_limit)))
     with concurrent.futures.ThreadPoolExecutor(max_workers=int(maxWorkers)) as executor:
         #session = create_custom_session(40)
         for post in posts:
