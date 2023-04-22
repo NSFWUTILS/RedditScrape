@@ -2,8 +2,8 @@
 REDDIT_CLIENT_ID = YourRedditAppClientID
 REDDIT_CLIENT_SECRET = YourRedditAppClientSecret
 REDDIT_USER_AGENT = SomeNameThatDoesNotMatter
-REDDIT_POST_LIMIT = 100 # How many posts you want
-REDDIT_SORT_METHOD = top # top, new, hot etc
+REDDIT_POST_LIMIT = 100 
+REDDIT_SORT_METHOD = top 
 REDDIT_SAVED_LIMIT = 500
 REDDIT_TIME_PERIOD = all 
 REDDIT_USER_NAME = myRedditUserName
