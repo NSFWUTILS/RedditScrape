@@ -14,6 +14,7 @@ The following sections should help get you started.
 Visit [this link](https://www.reddit.com/prefs/apps) to create an app
 
 At the bottom you should see a button to create an app, click on it and fill in the details so it looks something like this: 
+
 ![Create Reddit App](/images/create_reddit_app.png)
 
 Once you click on the `create app` button again, you should see it displayed above. Click on the `edit` link in the bottom left corner to get the details you need. You should see something like this:
