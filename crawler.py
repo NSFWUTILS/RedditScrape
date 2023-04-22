@@ -1,7 +1,7 @@
 import os
 import configparser
 import praw
-from utils import checkMime, download_video_from_text_file
+from utils import checkMime, download_video_from_text_file, clean_title
 import concurrent.futures
 import requests
 import time
@@ -9,6 +9,7 @@ from queue import Queue
 from requests.adapters import HTTPAdapter
 from requests.sessions import Session
 import subprocess
+import csv
 
 
 
@@ -92,6 +93,7 @@ def process_post(post, subreddit_folder, session):
     #print(f"Processing post: {post.url}")
     file_name = os.path.basename(post.url)
     file_path = os.path.join(subreddit_folder, file_name)
+    post_title = post.title
     # if os.path.exists(file_path):
     #     print(f"Skipping {file_path}")
     #     return
@@ -108,7 +110,10 @@ def process_post(post, subreddit_folder, session):
                     download_queue.put(file_path)
                     update_progress()
         else:
-            download_file(post.url, file_path, session)
+            result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
+            #download_file(post.url, file_path, session)
+            if result.stdout != "" and "#" not in result.stdout:
+                download_success.put(result.stdout)
             download_queue.put(file_path)
             update_progress()
 
@@ -140,6 +145,9 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
     with concurrent.futures.ThreadPoolExecutor(max_workers=int(maxWorkers)) as executor:
         #session = create_custom_session(40)
         for post in posts:
+            # print(f"Post Title: {post.title}", flush=True)
+            # print(f" - Clean  : {clean_title(post.title)}")
+            # print("")
             if post.url not in downloaded_urls:
                 try:
                     total_urls += 1
@@ -162,10 +170,10 @@ def main():
         session = create_custom_session(int(poolSize))
         futures = []
         print("done", flush=True)
-        print(f"Gathering list of topics and files to download (the real work begins)...", flush=True)
+        print(f" - Gathering list of topics and files to download...", flush=True)
         for subreddit_name in subreddit_names:
             futures.append(executor.submit(process_subreddit, subreddit_name, downloaded_urls, session))
-
+        print(f" - Now Downloading...")
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()
@@ -182,8 +190,7 @@ if __name__ == "__main__":
     print("* You will need to use 'ctrl+z' and once it has stopped run 'kill %1'.")
     print("")
     print("Starting Process", flush=True)
-    print("")
-    print("Loading list of subreddits to scrape...", end='', flush=True)
+    print(" - Loading list of subreddits to scrape...", end='', flush=True)
     main()
     print("")
     print("Downloading Complete")
@@ -215,6 +222,12 @@ if __name__ == "__main__":
             item = download_success.get().strip()
             log.write(f" - {item}\n")
             downloadCount += 1
+            # I forgot to check for text files (logs of .gifv are text/html)
+            # print("Checking for sneaking gifv text files")
+            # if checkMime(item):
+            #     print(f"Found a text file: {item}")
+            #     print(f" - Retrieving proper video from {item}")
+            #     download_video_from_text_file(item)
 
         log.write("\nList of URLs we failed to retrieve:\n")
         while not download_errors.empty():

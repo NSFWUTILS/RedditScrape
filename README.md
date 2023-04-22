@@ -90,6 +90,9 @@ If you want to make sure this keeps running in case you get disconnected or some
 ## Stopping the script
 **IMPORTANT:** This script runs in a threaded manner so you can't just `ctrl+c` your way out. If you want to cancel this you'll have to use `ctrl+z` first, then once it has stopped you can run `kill %1`. 
 
+# Downloading your own saved items
+I've created `saved.py` for people who want to run this against their own saved items. It will require you add your reddit username and password to the config file. Once you do that, just run `python saved.py` and it should work in a similar fashion, just slower (no threading here). It looks for anything in your saved items that points to imgur, redgif, or gyfcat and puts them in the same folder structure as the other stuff. 
+
 # To Do
 A few things I'd like to do if time permits....
 - Use something like sqllite to store all of this, that opens up some possibilities down the road for easier storing/tagging/classification. 

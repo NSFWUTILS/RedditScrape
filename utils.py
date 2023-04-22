@@ -24,6 +24,13 @@ def youtube(URL):
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         ydl.download([URL])
 
+def clean_title(title):
+    # Replace spaces with underscores
+    title = title.replace(' ', '_')
+    # Remove non-alphanumeric characters (except dashes and underscores)
+    title = re.sub(r'[^\w-]', '', title)
+    return title
+
 def gallery(URL):
     config.load()
     config.set(("extractor",), "base-directory", f"./tmp")
