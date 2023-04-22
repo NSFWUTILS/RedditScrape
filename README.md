@@ -3,9 +3,7 @@ With the news that reddit will soon be charging for API access, and that imgur i
 
 The code is designed to run in a concurrent fashion (sort of like multi-threading) to help with performance. 
 
-It will also look to see if the file already exists before downloading it, so you can run this multiple times. 
-
-Lastly, it seems to be working with imgur, redgif, and gfycat. 
+And a big thanks to the creator(s) of [gallery-dl](https://github.com/mikf/gallery-dl) as it makes it easy to support imgur.com, redgif.com, and gfycat.com.
 
 # Getting Started
 The following sections should help get you started. 
