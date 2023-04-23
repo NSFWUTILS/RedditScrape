@@ -1,7 +1,8 @@
 import os
 import configparser
 import praw
-from utils import checkMime, download_video_from_text_file, gallery_download
+#from utils import checkMime, download_video_from_text_file, gallery_download
+from utils import clean_title
 import concurrent.futures
 import requests
 import time
@@ -87,26 +88,46 @@ def download_file(url, file_path, session):
         #print(f"Error downloading {url} - status code {response.status_code}")
         download_errors.put(url)
 
+def gallery_download(subreddit_folder, post):
+    reddit_url = "https://www.reddit.com" + post.permalink
+    post_title = clean_title(post.title)
+    #print(f"Reddit URL: {reddit_url}",flush=True)
+    #print(f"Post Permalink: {post.permalink}",flush=True)
+    #gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{extension} "{post.url}" '
+    gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{{extension}}" {reddit_url} '
+    #print(f"Running gallery: {gallery_command}",flush=True)
+    result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
+    #print(f"Result STDOUT: {result.stdout}",flush=True)
+    #print(f"Result STDERR: {result.stderr}",flush=True)
+    #if "#" in result.stdout:
+        #print(f"Skipping: {post_title}",flush=True)
+        #skipped_files.put(post_title)
+    return result.stdout
+
 
 
 def process_post(post, subreddit_folder, session):
     #print(f"Processing post: {post.url}")
     file_name = os.path.basename(post.url)
     file_path = os.path.join(subreddit_folder, file_name)
-    post_title = post.title
+    #post_title = post.title
     # if os.path.exists(file_path):
     #     print(f"Skipping {file_path}")
     #     return
-    gallery_command = f'python -m gallery_dl -D {subreddit_folder} "{post.url}" '
+    #gallery_command = f'python -m gallery_dl -D {subreddit_folder} "{post.url}" '
     try:
+        #print(f"Trying to download {file_path}",flush=True)
         result = gallery_download(subreddit_folder,post)
-        if result:
-            if result.stdout != "" and "#" not in result.stdout:
-                download_success.put(result.stdout)
-                download_queue.put(file_path)
-                update_progress()
-            elif "#" in result.stdout:
-                skipped_files.put(file_path)
+        #print(f"Result: {result}",flush=True)
+        if "#" in result:
+            skipped_files.put(result)
+            #print(f"SkiPPING {file_path}",flush=True)
+            update_progress()
+        else:
+            download_success.put(result)
+            download_queue.put(result)
+            update_progress()
+            #print(f"Downloaded {result}",flush=True)
 
         # if "redgifs.com" in post.url or "gfycat.com" in post.url:
         #     if os.path.exists(file_path):
@@ -224,7 +245,7 @@ if __name__ == "__main__":
     with open(log_file, "w") as log:
         log.write("List of files we skipped (Already existed):\n")
         while not skipped_files.empty():
-            item = skipped_files.get()
+            item = skipped_files.get().strip()
             log.write(f" - {item}\n")
             skipCount += 1
 
