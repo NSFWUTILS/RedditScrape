@@ -103,7 +103,7 @@ def process_post(post, subreddit_folder, session):
         if result:
             if result.stdout != "" and "#" not in result.stdout:
                 download_success.put(result.stdout)
-                #download_success.put(file_path)
+                download_queue.put(file_path)
                 update_progress()
             elif "#" in result.stdout:
                 skipped_files.put(file_path)
