@@ -88,6 +88,15 @@ I've created `saved.py` for people who want to run this against their own saved 
 
 There's also a config setting (`REDDIT_SAVED_LIMIT`) for how many of your saved items it should retrieve, defaults to 500. 
 
+# Downloading json data (beta)
+Information about submissions (including links, upvotes, author, etc.) can be saved for further local processing. To save local subreddit data from the pushshift archives, run a command like this:
+
+    `python ./acquire_sub_posts_json.py --subreddit eyebleach`
+
+This will acquire submission data about every archived post in the "eyebleach" subreddit. This script will hang for a while every now and again, as the pushshift server is unreliable. Recommend doing an initial test on a smaller subreddit, like "girlskissing".
+
+Scripts for doing further processing on this data, and downloading images, should be added later...
+
 # To Do
 A few things I'd like to do if time permits....
 - Use something like sqllite to store all of this, that opens up some possibilities down the road for easier storing/tagging/classification. 
