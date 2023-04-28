@@ -110,7 +110,7 @@ def main():
         os.makedirs(json_output_folder)
     global my_download_counter
     my_download_counter = 0
-    print(f"Loading entries from compressed JSON...")
+    print(f"Loading entries from compressed JSON in {json_folder}...")
     global download_entries
     global skipped_urls
     download_entries = []
