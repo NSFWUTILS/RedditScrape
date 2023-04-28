@@ -24,8 +24,8 @@ global interrupted
 interrupted = False
 
 last_character = root_folder[-1]
-    if last_character != "/":
-        root_folder = root_folder + "/"
+if last_character != "/":
+    root_folder = root_folder + "/"
 
 global successful_subs
 global failed_subs

@@ -26,6 +26,9 @@ maxWorkers = config["CONFIG"]["MAX_WORKERS"]
 root_folder = config["CONFIG"]["MEDIA_FOLDER"]
 sleep_interval = config["CONFIG"]["SLEEP"]
 #poolSize = config["CONFIG"]["POOL_SIZE"]
+last_character = root_folder[-1]
+if last_character != "/":
+    root_folder = root_folder + "/"
 
 
 
@@ -98,7 +101,7 @@ def main():
     downloaded_urls = set()
     # Read in the list of subreddit names from the text file
     subreddit_file = 'subs'
-    json_folder = root_folder + "json-test/"
+    json_folder = root_folder + "json/"
     json_output_folder = root_folder + "json-output/"
     json_list = []
     global json_skip_queue
