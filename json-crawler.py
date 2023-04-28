@@ -71,7 +71,7 @@ def gallery_download(json_line):
     else:
         post_author = json_line['author']
     file_name = f"{json_line['post_id']}-{post_author}-{post_title}"
-    subreddit_folder = root_folder + json_line['subreddit_name'] +"/"
+    subreddit_folder = root_folder + "subreddits/" + json_line['subreddit_name'] +"/"
     gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{{extension}}" {json_line["url"]} '
     result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
     download_file_name = f"{subreddit_folder}{post_title}"
