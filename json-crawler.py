@@ -125,8 +125,8 @@ def main():
             output_file_path = os.path.join(json_output_folder,filename)
             input_file_path = os.path.join(json_folder, filename)
             #print(f"Calculated {total_entries}")
-            #for entry in read_gzipped_json(input_file_path):
-            for entry in islice(read_gzipped_json(input_file_path), 100): #Limiting to 100 posts for testing
+            for entry in read_gzipped_json(input_file_path):
+            #for entry in islice(read_gzipped_json(input_file_path), 100): #Limiting to 100 posts for testing
                 # with open("entry_log", "a") as entry_log:
                 #     entry_log.write(f"{entry['permalink']}\n")
                 my_download_counter += 1
