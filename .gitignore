@@ -1,1 +1,10 @@
 output/
+.python-version
+__pycache__/
+config
+output_log.txt
+push-query.py
+results.csv
+subs
+subs.orig
+subs.test
