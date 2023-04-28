@@ -300,7 +300,7 @@ if __name__ == "__main__":
 
     print(f"\nAll done!")
     print(f"\nLogs can be found in {log_file}")
-    print(f"Media is in {root_folder}")
+    print(f"Media is in {root_folder}subreddits")
     print(f"Original JSON is in {root_folder}json")
     print(f"Simplified JSON (in case you want to rename or organize) is in {root_folder}json-output")
     print(f"")
