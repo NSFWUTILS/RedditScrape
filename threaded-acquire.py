@@ -12,15 +12,21 @@ import argparse
 import configparser
 import concurrent.futures
 from contextlib import contextmanager
+from queue import Queue
 
 
 config = configparser.ConfigParser()
 config.read("config")
-maxWorkers = int(config["CONFIG"]["MAX_WORKERS"])
-poolSize = int(config["CONFIG"]["POOL_SIZE"])
+#maxWorkers = int(config["CONFIG"]["MAX_WORKERS"])
+maxWorkers = 4 # Go easy on Push shift
 root_folder = config["CONFIG"]["MEDIA_FOLDER"]
 global interrupted
 interrupted = False
+
+global successful_subs
+global failed_subs
+successful_subs = Queue()
+failed_subs = Queue()
 
 class NoQuotedCommasSession(requests.Session):
     """
@@ -64,7 +70,13 @@ class handle_interrupt:
         return self.func(*args, **kwargs)
 
 
-
+def displayOutput():
+    global sub_status_dict
+    for sub in sub_status_dict:
+        if sub_status_dict[sub]['completed'] == True:
+            print(f"\rDownloading {sub} complete",end="",flush=True)
+        else:
+            print(f"\rDownloading {sub}...chunk {sub_status_dict[sub]['chunks']}",end="",flush=True)
 
 
 
@@ -121,25 +133,27 @@ def fetch_all_subreddit_posts(sub_name, after=None, before=None):
         dict: A dictionary containing post data.
     """
     global interrupted
-    global total_num_subs
-    global sub_counter
+    global sub_status_dict
     if interrupted:
         print("Interrupted by user. Aborting.")
         return
-    sub_counter += 1
     i = 1
     while True:
-        print(f'loading chunk {i}')
+        print(f'loading {sub_name} - chunk {i}',flush=True)
+        sub_status_dict[sub_name]['chunks'] = i
         chunk = fetch_chunk(sub_name, after, before)
+        #displayOutput()
         if not chunk:
             break
         yield from chunk
         after = chunk[-1]['created_utc'] + 1
-        if i % 5 == 0:
-            print(f'{sub_name} loaded until {datetime.fromtimestamp(after)}')
-            print(f" - On {sub_counter} of {total_num_subs} subreddits")
+        # if i % 5 == 0:
+        #     print(f'loaded until {datetime.fromtimestamp(after)}')
         i += 1
-    print(f'done! loaded until {datetime.fromtimestamp(after)}')
+    print(f'{sub_name} done! loaded until {datetime.fromtimestamp(after)}')
+    successful_subs.put(sub_name)
+    sub_status_dict[sub_name]['completed'] = True
+    #displayOutput()
 
 def compress_and_delete_json(input_file_path):
     """
@@ -181,8 +195,6 @@ def write_posts_to_file(file_path, sub_name, is_incomplete=False, after=None, be
         write_posts_to_file('subreddit_posts.json.gz', 'eyebleach')
     """
     global interrupted
-    global total_num_subs
-    global sub_counter
     filename = os.path.basename(file_path)
     if not os.path.isfile(file_path):
         # Create file so we can open it in 'rb+' mode
@@ -228,6 +240,9 @@ def write_posts_to_file(file_path, sub_name, is_incomplete=False, after=None, be
         except requests.HTTPError as e:
             if e.response.status_code == 524:
                 print("Server timeout.")
+            elif e.response.status_code == 429:
+                print(f"Rate Limit: Sleeping for 15 seconds")
+                time.sleep(15)
             else:
                 print(f"Unexpected server error: {e.response.status_code}")
             
@@ -238,9 +253,10 @@ def write_posts_to_file(file_path, sub_name, is_incomplete=False, after=None, be
         except KeyboardInterrupt:
             print("Interrupted by user. Finishing up the file.")
             save_incomplete = True
-        except Exception as e:
-            print(f"Unexpected error: {e}")
             interrupted = True
+        except Exception as e:
+            print(f"Unexpected error for sub {sub_name}: {e}")
+            failed_subs.put(sub_name)
             if first_post:
                 delete_incomplete = True
             else:
@@ -253,6 +269,7 @@ def write_posts_to_file(file_path, sub_name, is_incomplete=False, after=None, be
                 timestamp = post["created_utc"]
                 return timestamp
             else:
+                after = 0
                 return after
     
     if delete_incomplete:
@@ -263,7 +280,7 @@ def write_posts_to_file(file_path, sub_name, is_incomplete=False, after=None, be
     if file_finished:
         # Compression time
         compress_and_delete_json(file_path)
-        print(f"File {filename} finished and compressed")
+        #print(f"File {filename} finished and compressed")
     
     return None
 
@@ -272,13 +289,13 @@ def write_posts_to_file(file_path, sub_name, is_incomplete=False, after=None, be
 def dump_subreddit_json(sub_name, out_dir='./', stop_early=False):
     """
     Dump subreddit posts into a JSON file.
-
+    
     This function checks if the JSON file with subreddit posts exists, and if it is complete or
     incomplete. If it is incomplete, the function resumes the data collection from the last known
     timestamp. If the file doesn't exist, the function starts collecting data from the beginning.
     The collected data is saved to a JSON file, and if the process is interrupted, an
     '.incomplete' file is created to store the last post's timestamp.
-
+    
     Args:
         sub_name (str): The name of the subreddit to fetch posts from.
     """
@@ -290,23 +307,22 @@ def dump_subreddit_json(sub_name, out_dir='./', stop_early=False):
     incomplete_path = file_path + '.incomplete'
     is_incomplete = os.path.isfile(incomplete_path)
     file_exists = os.path.isfile(file_path)
-    print(f"Storing JSON in {file_path}")
-
+    
     if os.path.isfile(file_path + ".gz"):
         print(f"Zipped version of file already exists: {filename}.gz\nTo generate a new one, \
 manually delete it and rerun the script.")
         return
-
+    
     if is_incomplete and not file_exists:
         os.remove(incomplete_path)
         is_incomplete = False
-
+    
     if file_exists and not is_incomplete:
         print(f"Error. File \"{filename}\" exists and does not seem to be incomplete. If it is \
 incomplete, create a new '.incomplete' file with the last post's timestamp. If it is completely \
 broken, delete it. Then, rerun the script. Otherwise, manually zip it with gzip.")
         return
-
+    
     before = None
     if stop_early:
         before = 1577862000 # Jan 1, 2020: Onlyfans surges in popularity
@@ -314,24 +330,22 @@ broken, delete it. Then, rerun the script. Otherwise, manually zip it with gzip.
         with open(incomplete_path, 'r') as incomplete_file:
             timestamp_s = incomplete_file.readline()
             timestamp = int(timestamp_s)
-
+        
         with open(incomplete_path, 'w') as incomplete_file:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                result = executor.submit(write_posts_to_file, file_path, sub_name, is_incomplete=True, after=timestamp, before=before).result()
-                if result is not None:
-                    incomplete_file.write(str(result))
-
+            result = write_posts_to_file(file_path, sub_name, is_incomplete=True, after=timestamp, before=before)
+            if result is not None:
+                incomplete_file.write(str(result))
+        
         if result is None:
             os.remove(incomplete_path)
     else:
         result = None
         with open(incomplete_path, 'w') as incomplete_file:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                result = executor.submit(write_posts_to_file, file_path, sub_name, before=before).result()
-                if result is not None:
-                    incomplete_file.write(str(result))
-
-        if result is None:
+            result = write_posts_to_file(file_path, sub_name, before=before)
+            if (result is not None):
+                incomplete_file.write(str(result))
+        
+        if (result is None):
             os.remove(incomplete_path)
 
 
@@ -342,19 +356,43 @@ def main_func(func):
 
 @handle_interrupt
 def main():
-    global num_subs
-    global sub_counter
-    global total_num_subs
-    subreddit_file = 'subs.test'
+    global sub_status_dict
+    sub_status_dict = {}
+    subreddit_file = 'subs2'
+    out_dir = root_folder + "json/"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     print(f"Opening subs file: {subreddit_file}")
+    print(f"Downloading json to {out_dir}")
     with open(subreddit_file) as f:
         subreddit_names = f.read().splitlines()
-        total_num_subs = len(subreddit_names)
-        sub_counter = 0
-        print(f"Loaded {total_num_subs} subreddits")
-        for subreddit_name in subreddit_names:
-            print(f"Gathering JSON for {subreddit_name}")
-            dump_subreddit_json(subreddit_name)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for subreddit_name in subreddit_names:
+                sub_status_dict[subreddit_name] = {
+                    "completed": False,
+                    "chunks": 0
+                }
+#                print(f"Gathering JSON for {subreddit_name}")
+                future = executor.submit(dump_subreddit_json, subreddit_name)
+                futures.append(future)
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    print(f'Exception {exc} generated while processing {future}')
+
 
 if __name__ == '__main__':
-    main_func(main)
+    main_func(main) #ChatGPT made me do it
+    print(f"Successfully Downloaded")
+    while not successful_subs.empty():
+            item = successful_subs.get()
+            print(f" - {item.strip()}")
+    if failed_subs.empty():
+        print(f"No reported error with any subs")
+    else:
+        print(f"Failed to retrieve data for these subs")
+        while not failed_subs.empty():
+                item = failed_subs.get()
+                print(f" - {item.strip()}")

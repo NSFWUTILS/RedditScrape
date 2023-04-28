@@ -1,13 +1,4 @@
 [CONFIG]
-REDDIT_CLIENT_ID = YourRedditAppClientID
-REDDIT_CLIENT_SECRET = YourRedditAppClientSecret
-REDDIT_USER_AGENT = SomeNameThatDoesNotMatter
-REDDIT_POST_LIMIT = 100 
-REDDIT_SORT_METHOD = top 
-REDDIT_SAVED_LIMIT = 500
-REDDIT_TIME_PERIOD = all 
-REDDIT_USER_NAME = myRedditUserName
-REDDIT_USER_PASS = myRedditUserPass
-MEDIA_FOLDER = /where/to/store/the/pr0n
-MAX_WORKERS = 24
-POOL_SIZE = 24
+MEDIA_FOLDER = /where/to/store/the/files
+MAX_WORKERS = 8
+SLEEP = 3

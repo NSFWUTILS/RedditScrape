@@ -1,6 +1,8 @@
 import gzip
 import json
 from itertools import islice
+from urllib.parse import urlparse, parse_qs
+import re
 
 class GzippedJsonWriter:
     def __init__(self, output_file_path):
@@ -21,6 +23,37 @@ class GzippedJsonWriter:
     def finish(self):
         self.file.write(b'\n]')
         self.file.close()
+
+def generate_output(input_file,output_file):
+    entries = []
+    for entry in read_gzipped_json(file_path):
+        #print(entry)
+        if "google.com" in str(entry['url']):
+            google_url = str(entry['url'])
+            parsed_url = re.search(r'url=([^&]+)', google_url).group(1)
+            #print(f"Parsed URL: {parsed_url}")
+            entry['url'] = parsed_url
+            #entry['Google AMP URL']: "True"
+        entry_json_to_write = {
+            "author" : entry['author'],
+            "domain ": entry['domain'],
+            "post_id" : entry['id'],
+            "permalink" : entry['permalink'],
+            "subreddit_name" : entry['subreddit'],
+            "url": entry['url'],
+            "upvote_ration" : entry['upvote_ratio']
+        }
+        entries.append(entry_json_to_write)        
+
+    # Write file
+    output_file = 'output_compressed_json_file.json.gz'
+    
+    writer = GzippedJsonWriter(output_file_path)
+    
+    for entry in entries:
+        writer.add_entry(entry)
+    
+    writer.finish()
 
 def read_gzipped_json(file_path, chunk_size=100):
     """
@@ -54,13 +87,33 @@ def read_gzipped_json(file_path, chunk_size=100):
 if __name__ == '__main__':
     
     # Read file
-    file_path = 'your_compressed_json_file.json.gz'
+    file_path = '/tmp/reddit/json/whileshewatches_subreddit_posts_raw.json.gz'
+    entries = []
     for entry in read_gzipped_json(file_path):
-        print(entry)
+        #print(entry)
+        if "google.com" in str(entry['url']):
+            google_url = str(entry['url'])
+            parsed_url = re.search(r'url=([^&]+)', google_url).group(1)
+            #print(f"Parsed URL: {parsed_url}")
+            entry['url'] = parsed_url
+            #entry['Google AMP URL']: "True"
+        entry_json_to_write = {
+            "author" : entry['author'],
+            "domain ": entry['domain'],
+            "post_id" : entry['id'],
+            "permalink" : entry['permalink'],
+            "subreddit_name" : entry['subreddit'],
+            "url": entry['url'],
+            "upvote_ration" : entry['upvote_ratio']
+        }
+        entries.append(entry_json_to_write)        
+
+
+
     
     
     # Write file
-    entries = [{'key1': 'value1'}, {'key2': 'value2'}, {'key3': 'value3'}]
+    #entries = [{'key1': 'value1'}, {'key2': 'value2'}, {'key3': 'value3'}]
     output_file_path = 'output_compressed_json_file.json.gz'
     
     writer = GzippedJsonWriter(output_file_path)
