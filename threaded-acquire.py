@@ -299,7 +299,11 @@ def dump_subreddit_json(sub_name, out_dir='./', stop_early=False):
     Args:
         sub_name (str): The name of the subreddit to fetch posts from.
     """
-    out_dir = root_folder + "json/"
+    last_character = root_folder[-1]
+    if last_character == "/":
+        out_dir = root_folder + "json/"
+    else:
+        out_dir = root_folder + "/json"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     filename = f'{sub_name}_subreddit_posts_raw.json'
@@ -358,7 +362,7 @@ def main_func(func):
 def main():
     global sub_status_dict
     sub_status_dict = {}
-    subreddit_file = 'subs2'
+    subreddit_file = 'subs'
     out_dir = root_folder + "json/"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
