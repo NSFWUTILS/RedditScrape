@@ -298,8 +298,11 @@ if __name__ == "__main__":
             log.write(f"rate_limit,{item}\n")
             rate_limit_count += 1
 
-    print(f"\nAll done. Logs can be found in {log_file}")
+    print(f"\nAll done!")
+    print(f"\nLogs can be found in {log_file}")
     print(f"Media is in {root_folder}")
+    print(f"Original JSON is in {root_folder}json")
+    print(f"Simplified JSON (in case you want to rename or organize) is in {root_folder}json-output")
     print(f"")
 
     end_time = time.time()
