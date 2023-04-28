@@ -23,6 +23,10 @@ root_folder = config["CONFIG"]["MEDIA_FOLDER"]
 global interrupted
 interrupted = False
 
+last_character = root_folder[-1]
+    if last_character != "/":
+        root_folder = root_folder + "/"
+
 global successful_subs
 global failed_subs
 successful_subs = Queue()
@@ -299,11 +303,11 @@ def dump_subreddit_json(sub_name, out_dir='./', stop_early=False):
     Args:
         sub_name (str): The name of the subreddit to fetch posts from.
     """
-    last_character = root_folder[-1]
-    if last_character == "/":
-        out_dir = root_folder + "json/"
-    else:
-        out_dir = root_folder + "/json"
+    #last_character = root_folder[-1]
+    #if last_character == "/":
+    out_dir = root_folder + "json/"
+    #else:
+    #    out_dir = root_folder + "/json"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     filename = f'{sub_name}_subreddit_posts_raw.json'
