@@ -101,8 +101,7 @@ def main():
     downloaded_urls = set()
     # Read in the list of subreddit names from the text file
     subreddit_file = 'subs'
-    #json_folder = root_folder + "json/"
-    json_folder = "/home/chadd/reddit/json"
+    json_folder = root_folder + "json/"
     json_output_folder = root_folder + "json-output/"
     json_list = []
     global json_skip_queue
