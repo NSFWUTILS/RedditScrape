@@ -61,7 +61,7 @@ def get_files(json_folder):
             if filename.endswith('_raw.json.gz'):
                 input_file_path = os.path.join(json_folder, filename)
                 futures.append(executor.submit(process_file_entries, input_file_path))
-        with tqdm(total=len(futures), desc="Loading Entries") as pbar:
+        with tqdm(total=len(futures), desc="Processing Entries") as pbar:
             for future in concurrent.futures.as_completed(futures):
                 try:
                     future.result()
