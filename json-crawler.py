@@ -77,6 +77,7 @@ write_thread.start()
 
 def gallery_download(download_item):
     global root_folder
+    global file_log_queue
     #print(f"Gallery processing entry: {download_item}", flush=True)
     reddit_permalink = download_item['permalink']
     post_title = f"{download_item['post_id']}-{reddit_permalink.split('/')[-2]}"
@@ -145,7 +146,7 @@ def main():
 
         # Read in previously downloaded files
         download_posts = set()
-        if os.path.exists("downloads.log"):
+        if os.path.exists("downloads.log") and os.path.getsize("downloads.log") > 0:
             print(f"\nDetected previous downloads (downloads.log) \n- Reading in list of already downloaded files")
             with open('downloads.log', 'r') as f:
                 for line in f:
