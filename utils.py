@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-import magic
+#import magic
 import re
 import urllib.request
 #from RedDownloader import RedDownloader
