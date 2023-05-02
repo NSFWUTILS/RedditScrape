@@ -101,7 +101,8 @@ def main():
     downloaded_urls = set()
     # Read in the list of subreddit names from the text file
     subreddit_file = 'subs'
-    json_folder = root_folder + "json/"
+    #json_folder = root_folder + "json/"
+    json_folder = "/home/chadd/reddit/json"
     json_output_folder = root_folder + "json-output/"
     json_list = []
     global json_skip_queue
@@ -121,12 +122,13 @@ def main():
 
     for filename in os.listdir(json_folder):
         if filename.endswith('_raw.json.gz'):
+            print(f" - Processing {filename}")
             file_entries = [] # For storing the abbreviated JSON data for a given sub
             output_file_path = os.path.join(json_output_folder,filename)
             input_file_path = os.path.join(json_folder, filename)
             #print(f"Calculated {total_entries}")
-            #for entry in read_gzipped_json(input_file_path):
-            for entry in islice(read_gzipped_json(input_file_path), 100): #Limiting to 100 posts for testing
+            for entry in read_gzipped_json(input_file_path):
+            #for entry in islice(read_gzipped_json(input_file_path), 100): #Limiting to 100 posts for testing
                 # with open("entry_log", "a") as entry_log:
                 #     entry_log.write(f"{entry['permalink']}\n")
                 my_download_counter += 1
