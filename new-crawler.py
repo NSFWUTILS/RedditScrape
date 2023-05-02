@@ -1,104 +1,119 @@
 import os
 import configparser
 import praw
-#from utils import checkMime, download_video_from_text_file, gallery_download
 from utils import clean_title
 import concurrent.futures
 import requests
 import time
-from queue import Queue
+#from queue import Queue, Empty
+from multiprocessing import Queue
+import queue
 from requests.adapters import HTTPAdapter
 from requests.sessions import Session
 import subprocess
 import csv
 import gzip
 import json
-from compressed_json_wrapper import read_gzipped_json,GzippedJsonWriter
+from compressed_json_wrapper import read_gzipped_json, GzippedJsonWriter
 import re
 from itertools import islice
 from tqdm import tqdm
-
+from load_files import get_files
+import threading
 
 # Setup the configparser to read the config file named 'config'
 config = configparser.ConfigParser()
 config.read("config")
-maxWorkers = config["CONFIG"]["MAX_WORKERS"]
+max_workers = int(config["CONFIG"]["MAX_WORKERS"])
 root_folder = config["CONFIG"]["MEDIA_FOLDER"]
-sleep_interval = config["CONFIG"]["SLEEP"]
-#poolSize = config["CONFIG"]["POOL_SIZE"]
+sleep_interval = int(config["CONFIG"]["SLEEP"])
 last_character = root_folder[-1]
 if last_character != "/":
     root_folder = root_folder + "/"
 
 
-
-# global bad_subs
 global download_errors
 global download_success
 global skipped_files
 global duplicate_urls
 global rate_limit_queue
+global file_entry_queue
+global file_log_queue
+file_log_queue = Queue()
+file_entry_queue = Queue()
 rate_limit_queue = Queue()
 download_success = Queue()
 download_errors = Queue()
-# bad_subs = Queue()
 skipped_files = Queue()
 duplicate_urls = Queue()
-# download_queue = Queue()
-# Set up the root filesystem folder
-
-def update_progress():
-    global download_entries
-    total_urls = len(download_entries)
-    #print(f"Total URL Count: {total_urls}",flush=True)
-    # while not download_queue.empty():
-    #     download_counter += 1
-        #progress = (processed_urls / total_urls) * 100
-    download_counter = download_success.qsize() + download_errors.qsize() + skipped_files.qsize()
-    progress = (download_counter / total_urls ) * 100
-    #print(f"\rProgress: {progress:.2f}%",end="", flush=True)
 
 
+# def update_progress():
+#     global download_entries
+#     total_urls = len(download_entries)
+#     download_counter = download_success.qsize() + download_errors.qsize() + skipped_files.qsize()
+#     progress = (download_counter / total_urls) * 100
 
-def gallery_download(json_line):
-    time.sleep(int(sleep_interval))
-    global download_entries
-    reddit_permalink = json_line['permalink']
-    #post_title = reddit_permalink.split("/")[-2]
-    post_title = f"{json_line['post_id']}-{reddit_permalink.split('/')[-2]}"
-    if json_line['author'] == "[deleted]":
+def write_log_file():
+    global file_log_queue
+    log_file = "downloads.log"
+    if not os.path.exists(log_file):
+        with open(log_file, 'w') as f:
+            pass
+    print(f"Tracking Downloads in downloads.log")
+    with open(log_file, "a") as f:
+        while True:
+            try:
+                file_info = file_log_queue.get().strip()
+                f.write(f"{file_info}\n")
+            except queue.Empty:
+                time.sleep(1)
+
+# Run in the background and store the post_id of every file we download. 
+# This will help if we have to start over
+write_thread = threading.Thread(target=write_log_file)
+write_thread.start()
+
+
+def gallery_download(download_item):
+    global root_folder
+    #print(f"Gallery processing entry: {download_item}", flush=True)
+    reddit_permalink = download_item['permalink']
+    post_title = f"{download_item['post_id']}-{reddit_permalink.split('/')[-2]}"
+    if download_item['author'] == "[deleted]":
         post_author = "deleted"
     else:
-        post_author = json_line['author']
-    file_name = f"{json_line['post_id']}-{post_author}-{post_title}"
-    subreddit_folder = root_folder + "subreddits/" + json_line['subreddit_name'] +"/"
-    gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{{extension}}" {json_line["url"]} '
+        post_author = download_item['author']
+    file_name = f"{download_item['post_id']}-{post_author}-{post_title}"
+    subreddit_folder = root_folder + "subreddits/" + download_item['subreddit_name'] +"/"
+    gallery_command = f'python -m gallery_dl -D {subreddit_folder} -f "{post_title}.{{extension}}" {download_item["url"]} '
     result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
     download_file_name = f"{subreddit_folder}{post_title}"
     if "#" in str(result.stdout):
-        log_entry = f"Skipped,permalink:{json_line['permalink']}, file:{download_file_name}"
+        log_entry = f"Skipped,permalink:{download_item['permalink']}, file:{download_file_name}"
         skipped_files.put(log_entry)
-        update_progress
+        file_log_queue.put(f"Skipped,{download_item['post_id']}")
+        return log_entry
     elif root_folder in str(result.stdout):
-        log_entry = f"Downloaded,permalink:{json_line['permalink']}, file:{download_file_name}"
+        log_entry = f"Downloaded,permalink:{download_item['permalink']}, file:{download_file_name}"
         download_success.put(log_entry)
-        processed_files.add(download_file_name)
-        update_progress()
+        file_log_queue.put(f"Downloaded,{download_item['post_id']}")
+        return log_entry
     if result.stderr:
-        #if "FileExistsError" not in str(result.stderr) and "410 Gone" not in str(result.stderr):
-        if "429" in str(result.stderr):
-            rate_limit_queue.put(json_line['url'])
-            time.sleep(60)
-        if "FileExistsError" not in str(result.stderr):
-            log_entry = f"Error,permalink:{json_line['permalink']},file:{download_file_name},error:{result.stderr}"
-            download_errors.put(log_entry)
-            update_progress()
-            #print(f"Error: {error_msg}")
-
-
+        if "FileExistsError" not in str(result.stderr) and "410 Gone" not in str(result.stderr):
+            if "429" in str(result.stderr):
+                rate_limit_queue.put(download_item['url'])
+                file_log_queue.put(f"429,{download_item['post_id']}")
+                time.sleep(60)
+            if "FileExistsError" not in str(result.stderr):
+                log_entry = f"Error,permalink:{download_item['permalink']},file:{download_file_name},error:{result.stderr}"
+                download_errors.put(log_entry)
+                return log_entry
 
 def main():
+    global downloaded_urls
     downloaded_urls = set()
+    
     # Read in the list of subreddit names from the text file
     subreddit_file = 'subs'
     json_folder = root_folder + "json/"
@@ -110,77 +125,52 @@ def main():
         os.makedirs(json_output_folder)
     global my_download_counter
     my_download_counter = 0
-    print(f"Loading entries from compressed JSON in {json_folder}...")
+    #print(f"Loading entries from compressed JSON in {json_folder}...")
+    giant_ass_download_list = get_files(json_folder)
+    print(f"Received {len(giant_ass_download_list)} entries to download")
     global download_entries
     global skipped_urls
     download_entries = []
+    global download_urls
     download_urls = []
     global duplicate_urls
+    global invalid_files
+    global skipped_files
+    invalid_files = Queue()
 
 
 
-    for filename in os.listdir(json_folder):
-        if filename.endswith('_raw.json.gz'):
-            print(f" - Processing {filename}")
-            file_entries = [] # For storing the abbreviated JSON data for a given sub
-            output_file_path = os.path.join(json_output_folder,filename)
-            input_file_path = os.path.join(json_folder, filename)
-            #print(f"Calculated {total_entries}")
-            for entry in read_gzipped_json(input_file_path):
-            #for entry in islice(read_gzipped_json(input_file_path), 100): #Limiting to 100 posts for testing
-                # with open("entry_log", "a") as entry_log:
-                #     entry_log.write(f"{entry['permalink']}\n")
-                my_download_counter += 1
-                # Gallery-dl only supports certain domains, and I'm only after the biggest ones
-                # This will ensure only supported domains are processed
-                # It will also help filter out a ton of the junk spam etc
-                supported_domains_list = ["imgur.com", "redgifs.com", "gfycat.com"]
-                if entry['url'] in download_urls:
-                    log_msg = f"Duplicate,permalink:{entry['permalink']},url:{entry['url']}"
-                    duplicate_urls.put(log_msg)
-                    continue
-                if any(domain in str(entry['url']) for domain in supported_domains_list):
-                    entry_json_to_write = {
-                        "author" : entry['author'],
-                        "domain ": entry['domain'],
-                        "post_id" : entry['id'],
-                        "permalink" : entry['permalink'],
-                        "subreddit_name" : entry['subreddit'],
-                        "url": entry['url']
-                    }
-                    download_urls.append(entry['url'])
-                    download_entries.append(entry_json_to_write) # Starting a massive download queue
-                    file_entries.append(entry_json_to_write) # Will end up in the simplifie JSON file
-                else:
-                    json_skip_msg = f"Ignored,permalink:{entry['permalink']}, URL '{entry['domain']}' not in supported list"
-                    json_skip_queue.put(json_skip_msg)
-
-            # Write the simplified JSON to disk in case someone wants it later
-            writer = GzippedJsonWriter(output_file_path)
-            for entry in file_entries:
-                writer.add_entry(entry)
-            writer.finish()
-    #print(f"done. \n - Total download list has {len(download_entries)} lines")
-    #return
-
-    ###with concurrent.futures.ThreadPoolExecutor() as executor:
-    with concurrent.futures.ThreadPoolExecutor(max_workers=int(maxWorkers)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=int(max_workers)) as executor:
         futures = []
-        for download_item in download_entries:
-            futures.append(executor.submit(gallery_download, download_item))
-        print(f" - Now Downloading...")
-        # for future in concurrent.futures.as_completed(futures):
-        #     try:
-        #         future.result()
-        #     except Exception as e:
-        #         print(f"Error in main: {e}")
-        with tqdm(total=len(futures)) as pbar:
+
+        # Read in previously downloaded files
+        download_posts = set()
+        if os.path.exists("downloads.log"):
+            print(f"\nDetected previous downloads (downloads.log) \n- Reading in list of already downloaded files")
+            with open('downloads.log', 'r') as f:
+                for line in f:
+                    action_taken, post_id = line.strip().split(',')
+                    if action_taken == "Downloaded":
+                        download_posts.add(post_id) # set now has list of all post_ids from downloads.log
+            print(f" - Found {len(download_posts)} posts already downloaded")
+
+        print(f"\nNow Downloading...this may take a while")
+        for entry in giant_ass_download_list:
+            if entry['post_id'] in download_posts:
+                #print(f"Skipping {entry['post_id']} - already in our log",flush=True)
+                log_msg = f"Skipped,permalink:{entry['permalink']}, post_id {entry['post_id']} in downloads.log"
+                skipped_files.put(log_msg)
+                continue
+            else:
+                futures.append(executor.submit(gallery_download, entry))
+
+        with tqdm(total=len(futures), desc="Downloading:") as pbar:
             for future in concurrent.futures.as_completed(futures):
                 try:
-                    future.result()
+                    result = future.result()
+                    pbar.update(1) 
                 except Exception as e:
-                    print(f"Error in main: {e}")
-                pbar.update(1)
+                    print(f"Error in main.main: {e}")
 
 if __name__ == "__main__":
     global processed_files
