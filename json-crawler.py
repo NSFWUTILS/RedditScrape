@@ -57,28 +57,40 @@ duplicate_urls = Queue()
 def write_log_file():
     global file_log_queue
     log_file = "downloads.log"
-    if not os.path.exists(log_file):
-        with open(log_file, 'w') as f:
-            pass
+#    if not os.path.exists(log_file):
+#        with open(log_file, 'w') as f:
+#            pass
     print(f"Tracking Downloads in downloads.log")
+    keep_going = True
     with open(log_file, "a") as f:
-        while True:
+        while keep_going:
             try:
                 file_info = file_log_queue.get().strip()
+                if file_info == "DONE":
+                    keep_going = False
+                    #print(f"Received DONE",flush=True)
+                    continue
                 f.write(f"{file_info}\n")
+                f.flush()
             except queue.Empty:
                 time.sleep(1)
+    #print(f"Done writing download logs")
 
 # Run in the background and store the post_id of every file we download. 
 # This will help if we have to start over
-write_thread = threading.Thread(target=write_log_file)
+#write_thread = threading.Thread(target=write_log_file)
+write_thread = threading.Thread(target=write_log_file, daemon=True)
 write_thread.start()
 
 
 def gallery_download(download_item):
+    global download_posts
     global root_folder
     global file_log_queue
+    evaluated_post_ids = set()
     #print(f"Gallery processing entry: {download_item}", flush=True)
+    if download_item['post_id'] in evaluated_post_ids:
+        print(f"Found duplicate post - {download_item['post_id']}",flush=True)
     reddit_permalink = download_item['permalink']
     post_title = f"{download_item['post_id']}-{reddit_permalink.split('/')[-2]}"
     if download_item['author'] == "[deleted]":
@@ -93,11 +105,13 @@ def gallery_download(download_item):
     if "#" in str(result.stdout):
         log_entry = f"Skipped,permalink:{download_item['permalink']}, file:{download_file_name}"
         skipped_files.put(log_entry)
+        evaluated_post_ids.add(download_item['post_id'])
         file_log_queue.put(f"Skipped,{download_item['post_id']}")
         return log_entry
     elif root_folder in str(result.stdout):
         log_entry = f"Downloaded,permalink:{download_item['permalink']}, file:{download_file_name}"
         download_success.put(log_entry)
+        evaluated_post_ids.add(download_item['post_id'])
         file_log_queue.put(f"Downloaded,{download_item['post_id']}")
         return log_entry
     if result.stderr:
@@ -107,12 +121,17 @@ def gallery_download(download_item):
                 file_log_queue.put(f"429,{download_item['post_id']}")
                 time.sleep(60)
             if "FileExistsError" not in str(result.stderr):
+                evaluated_post_ids.add(download_item['post_id'])
                 log_entry = f"Error,permalink:{download_item['permalink']},file:{download_file_name},error:{result.stderr}"
                 download_errors.put(log_entry)
                 return log_entry
+        else:
+            log_entry = f"Error,permalink:{download_item['permalink']},post_id:{download_item['post_id']},Mystery error: {result.stderr}"
+            download_errors.put(log_entry)
 
 def main():
     global downloaded_urls
+    global giant_ass_download_list
     downloaded_urls = set()
     
     # Read in the list of subreddit names from the text file
@@ -138,6 +157,8 @@ def main():
     global invalid_files
     global skipped_files
     invalid_files = Queue()
+    raw_download_counter = len(giant_ass_download_list)
+    my_download_counter = len(giant_ass_download_list)
 
 
 
@@ -154,6 +175,8 @@ def main():
                     if action_taken == "Downloaded":
                         download_posts.add(post_id) # set now has list of all post_ids from downloads.log
             print(f" - Found {len(download_posts)} posts already downloaded")
+            remaining_download_counter = raw_download_counter - len(download_posts)
+            print(f" - This leaves us with {remaining_download_counter} items to try and get")
 
         print(f"\nNow Downloading...this may take a while")
         for entry in giant_ass_download_list:
@@ -172,6 +195,11 @@ def main():
                     pbar.update(1) 
                 except Exception as e:
                     print(f"Error in main.main: {e}")
+        
+        #file_log_queue.put(None)
+        file_log_queue.put("DONE")
+        # Wait for the write_log_file thread to terminate
+        write_thread.join()
 
 if __name__ == "__main__":
     global processed_files
@@ -211,6 +239,7 @@ if __name__ == "__main__":
     downloadSet = set()
     errorSet = set()
     duplicateSet = set()
+    rateLimitSet = set()
 
     while not skipped_files.empty():
         item = skipped_files.get().strip()
@@ -232,8 +261,15 @@ if __name__ == "__main__":
             item = duplicate_urls.get().strip()
             duplicateSet.add(item)
 
+    while not rate_limit_queue.empty():
+        item = rate_limit_queue.get().strip()
+        rateLimitSet.add(item)
 
 
+    # raw_log_file = "raw_entries.txt"
+    # with open (raw_log_file, "w") as raw_log:
+    #     for line in giant_ass_download_list:
+    #         json.dump(line, raw_log, indent=4)
 
     log_file = "output_log.txt"
     with open(log_file, "w") as log:
@@ -284,7 +320,7 @@ if __name__ == "__main__":
             log.write(f" - {line}\n")
             duplicateCount += 1
 
-        log.write("\nList of URLs that were rate limited")
+        log.write("\nList of URLs that were rate limited\n")
         while not rate_limit_queue.empty():
             item = rate_limit_queue.get().strip()
             log.write(f"rate_limit,{item}\n")
@@ -303,17 +339,18 @@ if __name__ == "__main__":
     global download_entries
     total_urls = len(download_entries)
     if total_time < 120:
-        print(f"Overall, I processed {my_download_counter} files in {int(total_time)} seconds")
+        print(f"Overall, I processed {my_download_counter} entries in {int(total_time)} seconds")
     elif total_minutes < 120:
-        print(f"Overall, I processed {my_download_counter} files in {total_minutes} minutes")
+        print(f"Overall, I processed {my_download_counter} entries in {total_minutes} minutes")
     else:
         total_hours = round(total_time / 3600, 1)
-        print(f"Overall, I processed {my_download_counter} files in {total_hours} hours")
+        print(f"Overall, I processed {my_download_counter} entries in {total_hours} hours")
 
     print(f" - {skipCount} files were skipped (already exist)")
     print(f" - {ignoreCount} were ignored (unsupported or spam)")
     print(f" - {downloadCount} files were downloaded")
     print(f" - {errorCount} files had errors")
+    print(f" - {rate_limit_count} files were rate limited")
     print(f" - {duplicateCount} URLs were duplicates in the original data")
     if rate_limit_count > 5:
         print(f" - {rate_limit_count} URLS failed due to rate-limiting")
