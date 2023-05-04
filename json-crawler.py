@@ -272,7 +272,7 @@ if __name__ == "__main__":
     #         json.dump(line, raw_log, indent=4)
 
     log_file = "output_log.txt"
-    with open(log_file, "w") as log:
+    with open(log_file, "w", , encoding="utf-8") as log:
         log.write("List of files we skipped (Already existed):\n")
         # while not skipped_files.empty():
         #     item = skipped_files.get().strip()
