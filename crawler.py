@@ -1,17 +1,16 @@
 import os
-import configparser
-import praw
-#from utils import checkMime, download_video_from_text_file, gallery_download
-from utils import clean_title
-import concurrent.futures
-import requests
+import sys
 import time
+import concurrent.futures
 from queue import Queue
 from requests.adapters import HTTPAdapter
 from requests.sessions import Session
 import subprocess
-import csv
-
+import configparser
+import praw
+from utils import download_video_from_text_file
+from utils import clean_title
+import pdb
 
 
 # Setup the configparser to read the config file named 'config'
@@ -36,6 +35,8 @@ global processed_urls
 global total_urls
 global download_queue
 global download_counter
+global root_folder
+global sub_mode
 download_counter = 0
 processed_urls = 0
 total_urls = 1
@@ -74,18 +75,38 @@ def download_file(url, file_path, session):
     if os.path.exists(file_path):
         skipped_files.put(file_path)
         return
-
-    #response = requests.get(url)
     response = session.get(url)
-    if response.status_code == 200:
+    if response.status_code==404:
+        print(f"404: {url}")
+
+    #If a successful response with image content type...
+    elif response.status_code==200 and 'image' in response.headers['content-type']:
+        #If it's a decent sized, it's probably legit; grab it.
+        if len(response.content)>16*1024:
+            with open(file_path, 'wb') as f:
+                global processed_urls
+                f.write(response.content)
+                download_success.put(file_path)
+                processed_urls += 1
+                update_progress()
+                #print(f"File downloaded: {file_path}")
+        
+        #If it's tiny, it's probably a "not found" image from the host; skip it.
+        else:
+            print(f"Image probably removed from host: {url}")
+    
+    #If it's text, see if there's a image link within it and try to grab that.
+    elif 'text' in response.headers['content-type']:
         with open(file_path, 'wb') as f:
             f.write(response.content)
+        if download_video_from_text_file(file_path):
             download_success.put(file_path)
             processed_urls += 1
             update_progress()
-            #print(f"File downloaded: {file_path}")
+        os.remove(file_path)
+
     else:
-        #print(f"Error downloading {url} - status code {response.status_code}")
+        #print(f"Error downloading {url}:\nStatus {response.status_code}\n{response.headers}")
         download_errors.put(url)
 
 def gallery_download(subreddit_folder, post):
@@ -110,44 +131,19 @@ def process_post(post, subreddit_folder, session):
     #print(f"Processing post: {post.url}")
     file_name = os.path.basename(post.url)
     file_path = os.path.join(subreddit_folder, file_name)
-    #post_title = post.title
-    # if os.path.exists(file_path):
-    #     print(f"Skipping {file_path}")
-    #     return
-    #gallery_command = f'python -m gallery_dl -D {subreddit_folder} "{post.url}" '
     try:
         #print(f"Trying to download {file_path}",flush=True)
         result = gallery_download(subreddit_folder,post)
         #print(f"Result: {result}",flush=True)
         if "#" in result:
             skipped_files.put(result)
-            #print(f"SkiPPING {file_path}",flush=True)
+            #print(f"Skipping {file_path}",flush=True)
             update_progress()
         else:
             download_success.put(result)
             download_queue.put(result)
             update_progress()
             #print(f"Downloaded {result}",flush=True)
-
-        # if "redgifs.com" in post.url or "gfycat.com" in post.url:
-        #     if os.path.exists(file_path):
-        #         skipped_files.put(file_path)
-        #         return
-        #     #result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
-        #     result = gallery_download(subreddit_folder,post)
-        #     if result:
-        #         if result.stdout != "" and "#" not in result.stdout:
-        #             download_success.put(result.stdout)
-        #             download_queue.put(file_path)
-        #             update_progress()
-        # else:
-        #     #result = subprocess.run(gallery_command, shell=True, text=True, capture_output=True)
-        #     result = gallery_download(subreddit_folder,post)
-        #     #download_file(post.url, file_path, session)
-        #     if result.stdout != "" and "#" not in result.stdout:
-        #         download_success.put(result.stdout)
-        #     download_queue.put(file_path)
-        #     update_progress()
 
     except Exception as e:
         error_message = "Error processing URL: " + post.url + " - " + e
@@ -156,15 +152,16 @@ def process_post(post, subreddit_folder, session):
 
 def process_subreddit(subreddit_name, downloaded_urls, session):
     global total_urls
+    global sub_mode
     subreddit_folder = os.path.join(root_folder, subreddit_name)
     os.makedirs(subreddit_folder, exist_ok=True)
 
-    subreddit = reddit.subreddit(subreddit_name)
-    try:
-        subreddit.id
-
-
-    except:
+    if sub_mode=='user_file':
+        subreddit = reddit.redditor(subreddit_name)
+    else:
+        subreddit = reddit.subreddit(subreddit_name)
+    
+    if not hasattr(subreddit,'id'):
         bad_subs.put(subreddit_name)
         return
 
@@ -177,6 +174,8 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
     with concurrent.futures.ThreadPoolExecutor(max_workers=int(maxWorkers)) as executor:
         #session = create_custom_session(40)
         for post in posts:
+            if not hasattr(post,'url'):
+                continue
             # print(f"Post Title: {post.title}", flush=True)
             # print(f" - Clean  : {clean_title(post.title)}")
             # print("")
@@ -189,23 +188,34 @@ def process_subreddit(subreddit_name, downloaded_urls, session):
                 except Exception as e:
                     print(f"Error processing url: {post.url} - {e}")
 
-
-
 def main():
+    """ """
+    global root_folder
+    global sub_mode
     downloaded_urls = set()
-    # Read in the list of subreddit names from the text file
-    subreddit_file = 'subs'
-    with open(subreddit_file) as f:
-        subreddit_names = f.read().splitlines()
-
+    
+    #By default, use the subs list.
+    if len(sys.argv)<=1 or sys.argv[1]=='subs_file':
+        sub_mode='subs_file' 
+        subreddit_names=open('subs').read().splitlines()
+    elif sys.argv[1]=='users_file':
+        sub_mode='user_file' 
+        subreddit_names=open('users').read().splitlines()
+        root_folder+="\_users"
+    else:
+        print("Invalid operating mode")
+        sys.exit()
+    
+    
+    
     with concurrent.futures.ThreadPoolExecutor() as executor:
         session = create_custom_session(int(poolSize))
         futures = []
         print("done", flush=True)
-        print(f" - Gathering list of topics and files to download...", flush=True)
+        print(" - Gathering list of topics and files to download...", flush=True)
         for subreddit_name in subreddit_names:
             futures.append(executor.submit(process_subreddit, subreddit_name, downloaded_urls, session))
-        print(f" - Now Downloading...")
+        print(" - Now Downloading...")
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()
@@ -226,7 +236,7 @@ if __name__ == "__main__":
     main()
     print("")
     print("Downloading Complete")
-    print(f"List of bad subs:" )
+    print("List of bad subs:" )
     while not bad_subs.empty():
         item = bad_subs.get()
         print(f" - {item}")
@@ -269,7 +279,7 @@ if __name__ == "__main__":
 
     print(f"All done. Logs can be found in {log_file}")
     print(f"Media is in {root_folder}")
-    print(f"")
+    print("")
 
     end_time = time.time()
     total_time = end_time - start_time
